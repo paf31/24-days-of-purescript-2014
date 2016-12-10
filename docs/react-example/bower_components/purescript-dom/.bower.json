@@ -1,0 +1,16 @@
+{
+  "name": "purescript-dom",
+  "version": "0.1.1",
+  "description": "PureScript interface for the DOM.",
+  "license": "MIT",
+  "homepage": "https://github.com/joneshf/purescript-dom",
+  "_release": "0.1.1",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.1.1",
+    "commit": "bcd1ec1e57a4f06178f610184db2cc0826d2323e"
+  },
+  "_source": "git://github.com/joneshf/purescript-dom.git",
+  "_target": "~0.1.0",
+  "_originalSource": "purescript-dom"
+}
