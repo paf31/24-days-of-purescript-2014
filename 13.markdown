@@ -6,7 +6,7 @@ Today, I'm going to take a look at `purescript-smolder`, which is the third (but
 
 To celebrate having just completed twelve days of this mini-blog series, I'm going to use the library to create a page which lists the lyrics to the song "the twelve days of Christmas" in a structured form.
 
-For anyone who just wants to see the finished result, you can do so [here](http://paf31.github.io/24-days-of-purescript/smolder-example/html/).
+For anyone who just wants to see the finished result, you can do so [here](http://paf31.github.io/24-days-of-purescript-2014/smolder-example/html/).
 
 My demo uses the following imports from the `purescript-smolder` library:
 

@@ -96,7 +96,7 @@ We can subscribe to these combined events, and display the recognized gesture on
     void $ msg `setText` output
 ```
 
-The finished demo can be seen [here](http://paf31.github.io/24-days-of-purescript/purescript-rx/html/).
+The finished demo can be seen [here](http://paf31.github.io/24-days-of-purescript-2014/purescript-rx/html/).
 
 This is just one example of the ways in which `purescript-rx` and RxJS can be used to combine event streams. I haven't covered the `Applicative` or `Semigroup` instances here, which are interesting in their own right. Fortunately, the library is very simple to install, so fork the demo repository and give it a try for yourself.
 

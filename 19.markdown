@@ -102,6 +102,6 @@ My final version of the game has Rudolf move at a velocity which depends on his 
 
 The code for the final version can be found [here](https://github.com/paf31/24-days-of-purescript/blob/gh-pages/signals-test/src/Main.purs#L30). It uses the `sampleOn` combinator to sample the relevant events every 20 milliseconds, and then uses the `foldp` combinator to modify the game state (Rudolf's position) based on these events.
 
-The final game can be played [here](http://paf31.github.io/24-days-of-purescript/signals-test/html/).
+The final game can be played [here](http://paf31.github.io/24-days-of-purescript-2014/signals-test/html/).
 
 Programming with signals is a lot of fun, especially when designing interactive web pages or games like these. I suggest you try it out!

@@ -1,6 +1,6 @@
 # 4. `purescript-canvas` and `purescript-free-canvas`
 
-Today, I'm going to show how to create an online Christmas card using the HTML5 Canvas API from PureScript. You can see the finished result [here](http://paf31.github.io/24-days-of-purescript/purescript-xmas-card/html/).
+Today, I'm going to show how to create an online Christmas card using the HTML5 Canvas API from PureScript. You can see the finished result [here](http://paf31.github.io/24-days-of-purescript-2014/purescript-xmas-card/html/).
 
 I started working on the `purescript-canvas` library not long after I started work on the compiler itself, and it has since seen contributions from a number of community members. The `purescript-free-canvas` library provides a free monad interface to the Canvas API, which hides the 2D graphics context object from the user.
 

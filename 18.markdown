@@ -88,6 +88,6 @@ Next, we can append a text node for each array element, to label the correspondi
     .. text'       (\o -> o.label ++ " (" ++ show o.count ++ "%)")
 ```
 
-And that's it! The finished product can be seen [here](http://paf31.github.io/24-days-of-purescript/d3-example/example/html/).
+And that's it! The finished product can be seen [here](http://paf31.github.io/24-days-of-purescript-2014/d3-example/example/html/).
 
 `purescript-d3` provides much more functionality, including transitions, interpolation, and the ability to read data from TSV files. I don't have time to cover these here, but they are well worth checking out on [GitHub](https://github.com/pelotom/purescript-d3).

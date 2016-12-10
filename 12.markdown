@@ -81,4 +81,4 @@ foreign import getValue
   \}" :: Event -> String
 ```
 
-If you would like to see the finished application, it is available online [here](http://paf31.github.io/24-days-of-purescript/react-example/html/).
+If you would like to see the finished application, it is available online [here](http://paf31.github.io/24-days-of-purescript-2014/react-example/html/).

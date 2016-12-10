@@ -50,6 +50,6 @@ view nextDay n = el "div"
 
 And that's all that is needed to create a user interface with feedback in `purescript-frp-rabbit`! Even more impressively, we get partial updates to the DOM for free, because of the way in which Rabbit uses `virtual-dom` under the hood. This means that we can expect our user interfaces to be very fast, only writing the minimal number of changes to the DOM on each render.
 
-You can see the finished demo running [here](http://paf31.github.io/24-days-of-purescript/rabbit-example/html/).
+You can see the finished demo running [here](http://paf31.github.io/24-days-of-purescript-2014/rabbit-example/html/).
 
 In this series, we've seen a few different approaches to FRP and the UI, and there are still other libraries which I have not covered. I hope that this example has shown that it is possible to create high-performance user interfaces in PureScript quickly by making use of powerful abstractions like signals and the virtual DOM.
