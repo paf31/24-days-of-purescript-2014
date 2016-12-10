@@ -1,0 +1,93 @@
+# 18. `purescript-d3`
+
+Today I spent some time looking at the `purescript-d3` library, written by [@pelotom](http://github.com/pelotom). `purescript-d3` provides a set of bindings to the [D3](http://d3js.org) diagrams library.
+
+I have not used D3 before, but I started by creating a new project, installing `purescript-d3` using Bower, and following the excellent [examples](https://github.com/pelotom/purescript-d3-examples/).
+
+The data science division of Santa and co. is preparing its annual report and has decided to use D3 to create its charts. Here is their data in the form of an array:
+
+```purescript
+array = [ { label: "Nice"
+          , count: 92
+          }
+        , { label: "Naughty"
+          , count: 8
+          }
+        ]
+```
+
+I will show how to plot this as a simple bar chart, with vertical bars.
+
+I created a HTML file, based on the example, which looked like this:
+
+```html
+<html>
+  <head>
+    <style>
+    .chart rect {
+      fill: green;
+    }
+    .chart text {
+      font: 10px sans-serif;
+    }
+    </style>
+  </head>
+  <body>
+    <svg class="chart"></svg>
+    <script src="../bower_components/d3/d3.min.js"></script>
+    <script src="index.js"></script>
+  </body>
+</html>
+```
+
+and a PureScript file in `src/Main.purs`, with the following imports:
+
+```purescript
+module Main where
+
+import Graphics.D3.Util
+import Graphics.D3.Selection
+```
+
+`purescript-d3` provides a monadic interface to D3, based on the `Eff` monad. D3's fluent interface is captured by the bind operation of the `Eff` monad, but `purescript-d3` provides a helpful `..` operator as a synonum for `>>=`, making the code more readable.
+
+In the first part of the code, I obtain a reference to the `<svg>` element on the page, and bind the data in `array` to a list of `<g>` subnodes of that element:
+
+```purescript
+main = do
+  g <- rootSelect ".chart"
+    .. selectAll "g"
+    .. bind array  
+    .. enter
+      .. append "g"
+```
+
+The result is that we create one `<g>` element for each entry in our array. `g` is bound to this selection, and we can use this reference to append different nodes to each element.
+
+Let's start by adding a rectangle to represent each bar:
+
+```purescript
+  g # append "rect"
+    .. attr'' "x"      (\_ i -> i * 100)
+    .. attr'  "y"      (\o -> 100 - o.count)
+    .. attr   "width"  98
+    .. attr'  "height" (\o -> o.count)
+
+    .. style  "stroke-width" "1"
+    .. style  "stroke"       "rgb(0,255,0)"
+```
+
+Here we are essentially only using two functions to modify the rectangle, `attr` and `style`. The `attr'` and `attr''` modifiers are variants of the `attr` function, which provide access to the current element of the array, and its index in the array respectively, as function arguments.
+
+Next, we can append a text node for each array element, to label the corresponding bar, as follows:
+
+```purescript
+  g # append "text"
+    .. attr'' "x"  (\_ i -> i * 100 + 20)
+    .. attr   "y"  120
+    .. text'       (\o -> o.label ++ " (" ++ show o.count ++ "%)")
+```
+
+And that's it! The finished product can be seen [here](http://paf31.github.io/24-days-of-purescript/d3-example/example/html/).
+
+`purescript-d3` provides much more functionality, including transitions, interpolation, and the ability to read data from TSV files. I don't have time to cover these here, but they are well worth checking out on [GitHub](https://github.com/pelotom/purescript-d3).

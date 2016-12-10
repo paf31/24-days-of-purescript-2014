@@ -1,0 +1,87 @@
+# 9. `purescript-test-unit`
+
+Two days ago, I promised to show how we might utilize the `tests` folder in Bodil Stokke's `pulp` tool. There are actually multiple options, and I hope to cover more of them in future posts, but today I will take a look at another library from [@bodil](https://github.com/bodil/) called [`purescript-test-unit`](https://github.com/bodil/purescript-test-unit).
+
+`purescript-test-unit` aims to bring conventional unit testing to PureScript, with support for asynchronous tests.
+
+Let's create a new project using `pulp`, add some sample code, and write some tests.
+
+```text
+$ pulp init
+```
+
+Santa's software development division have created a web service to respond to inventory requests for Christmas gifts, and helpfully provided a mock service which simulates server latency. Here is their code, which we can place into `src/ServiceMock.purs`:
+
+```purescript
+module ServiceMock where
+
+import Control.Monad.Eff
+
+foreign import data HTTP :: !
+
+foreign import checkInventory
+  "function checkInventory(item) {\
+  \  return function(k) {\
+  \    return function() {\
+  \      setTimeout(function() {\
+  \        switch (item) {\
+  \          case 'Nutcracker':\
+  \          case 'Spinning Top':\
+  \            k(true)();\
+  \            break;\
+  \          default:\
+  \            k(false)();\
+  \        }\
+  \      }, 500);\
+  \    };\
+  \  }\
+  \}" :: forall eff. String ->
+                     (Boolean -> Eff (http :: HTTP | eff) Unit) ->
+                     Eff (http :: HTTP | eff) Unit
+```
+
+Now, we can test this mock service implementation (and any code which depends on it), by placing our tests in `test/Main.purs`:
+
+```purescript
+module Test.Main where
+
+import Test.Unit
+import ServiceMock
+
+main = runTest do
+  test "Service Tests" do
+    assertFn "Nutcracker is missing from inventory" $
+      checkInventory "Nutcracker"
+    assertFn "Spinning Top is missing from inventory" $
+      checkInventory "Spinning Top"
+```
+
+Here, `runTest` runs a test suite, printing a test report onto the console. `test` introduces a named test group, and `assertFn` can be used to run an asynchronous test, by taking a callback as an argument.
+
+We can run our test suite on the command line:
+
+```text
+$ pulp test
+* Building project in purescript/pulp-test
+* Build successful. Running tests...
+→ Running: Service Tests
+  ✓ Passed: Service Tests
+* Tests OK.
+```
+
+If we modify our tests to make a false assertion, we will see an error in the test report:
+
+```text
+$ pulp test
+* Building project in purescript/pulp-test
+* Build successful. Running tests...
+→ Running: Service Tests
+  ☠ Failed: Service Tests because Bicycle is in inventory
+* ERROR: Subcommand terminated with error code 1
+```
+
+`purescript-test-unit` supports other test functions, such as `assert` and `assertFalse`, which can be used to build pure tests, and `timeout` which can be used to ensure that an asynchronous function returns in a fixed amount of time.
+
+Later in the series, I'll take a look at some complementary testing libraries, which can be used alongside `purescript-test-unit` to provide different types of tests.
+
+Until next time...

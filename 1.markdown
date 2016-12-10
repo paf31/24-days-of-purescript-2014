@@ -1,0 +1,13 @@
+# 1. Introduction
+
+Inspired by the excellent [24 Days of Hackage](https://ocharles.org.uk/blog/pages/2013-12-01-24-days-of-hackage.html) by Oliver Charles, I have decided to write a series of blog posts to highlight some of the wonderful work being done in the PureScript community.
+
+Each day, I will choose one of the PureScript libraries written by the community, give a brief introduction, and (hopefully) provide practical code examples.
+
+PureScript is still a young language, having recently celebrated the one year anniversary of its initial GitHub commit, but the community has grown very quickly. Hopefully, this series of blog posts will inspire you to try to write a library of your own - and we have no shortage of ideas for possible projects.
+
+If you are interested in learning PureScript, please follow along with the posts, which will be added here each day, and check out the [book](http://leanpub.com/purescript/read) and the [new website](http://purescript.org).
+
+Also, guest posts are more than welcome, so please get in touch in the comments!
+
+Thanks!

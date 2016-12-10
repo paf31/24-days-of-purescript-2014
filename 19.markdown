@@ -1,0 +1,107 @@
+# 19. `purescript-signal`
+
+Today, I've been looking at [@bodil](http://github.com/bodil)'s [`purescript-signal`](https://github.com/bodil/purescript-signal) library, which is a PureScript port of part of [Elm](http://elm-lang.org)'s signal implementation. You might be familiar with this library already from Bodil's excellent [Strange Loop 2014 talk](https://www.youtube.com/watch?v=yIlDBPiMb0o). I'm going to try to make a very minimal Christmas-themed game using the library.
+
+I started by creating a new project with `pulp init`, and using Bower to install `purescript-signal`. I found an image of Rudolf the red-nosed reindeer online and copied it into the `images/` directory, and created this simple HTML page:
+
+```html
+<html>
+  <head>
+    <style>
+      #rudolf {
+        position: absolute;
+        background-image: url('../images/rudolf.png');
+        background-size: contain;
+        width: 268px;
+        height: 355px;
+        margin-left: -134px;
+        margin-top: -177px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="rudolf"></div>
+    <script src="index.js"></script>
+  </body>
+</html>
+```
+
+The goal will be to animate the `rudolf` element by using signals to change its position based on things like the mouse position.
+
+My first attempt was very simple - I had the element simply follow the cursor. I started with a foreign import which would set the `left` and `top` properties on the `div`, as follows:
+
+```purescript
+import Control.Monad.Eff
+
+import DOM
+
+import Signal
+import Signal.DOM
+
+foreign import render
+  "function render(pos) {\
+  \  return function() {\
+  \    var rudolf = document.getElementById('rudolf');\
+  \    rudolf.style.left = pos.x + 'px';\
+  \    rudolf.style.top  = pos.y + 'px';\
+  \  };\
+  \}" :: forall eff. CoordinatePair -> Eff (dom :: DOM | eff) Unit
+```
+
+With that, my `main` action was very simple:
+
+```purescript
+main = do
+  mouse <- mousePos
+  runSignal (render <~ rudolf mouse)
+  where
+  rudolf :: Signal CoordinatePair -> Signal CoordinatePair
+  rudolf mouse = mouse
+```
+
+The main abstraction in the `purescript-signal` library is the `Signal` type constructor, which represents time-varying values. Here, I only use the `mousePos` action to get a `Signal` which represents the current mouse position. I then use the `<~` operator, which is a synonym for the `Functor`'s `fmap` function, to map the `render` function over the generated coordinates. Finally, I use `runSignal` to listen for changes to the signal's value, and run the wrapped effects.
+
+I can compile this file with `pulp browserify` and save the resulting JavaScript in `html/index.js`, and see in the browser that Rudolf does indeed follow the mouse cursor. However, to make things more interesting, let's try to make Rudolf avoid the cursor, and the aim of the game can be to try to catch him.
+
+Let's start by making our own `Signal` which will reflect the size of the window. To keep things simple, I'll just check the size of the window each second, but you might like to try using the FFI to implement this using an event handler instead:
+
+```purescript
+type Dimensions = { w :: Number, h :: Number }
+
+foreign import dimensions
+  "function dimensions() {\
+  \  return { w: document.body.offsetWidth\
+  \         , h: document.body.offsetHeight\
+  \         };\
+  \};" :: forall eff. Eff (dom :: DOM | eff) Dimensions
+
+dimensionsS :: forall eff. Eff (dom :: DOM, timer :: Timer | eff) (Signal Dimensions)
+dimensionsS = unwrap $ every second ~> \_ -> dimensions
+```
+
+I've used the `every` signal to generate a tick every second, and the `unwrap` function, which turns a signal of effectful computations like `dimensions` into a regular signal.
+
+Here is my new `main` method:
+
+```purescript
+main = do
+  mouse <- mousePos
+  dims  <- dimensionsS
+  runSignal (render <~ rudolf mouse dims)
+  where
+  rudolf :: Signal CoordinatePair -> Signal Dimensions -> Signal CoordinatePair
+  rudolf = zip position
+
+  position :: CoordinatePair -> Dimensions -> CoordinatePair
+  position o d = { x: d.w - o.x, y: d.h - o.y }
+```
+
+I've used the `zip` combinator to combine my two signals into a single signal by applying the two-argument function `position`. Now Rudolf avoids the mouse cursor, unless the mouse is in the center of the screen.
+
+My final version of the game has Rudolf move at a velocity which depends on his distance to the cursor, and in a direction away from the cursor. In addition, if the user manages to catch Rudolf, then he will jump to another position.
+
+The code for the final version can be found [here](https://github.com/paf31/24-days-of-purescript/blob/gh-pages/signals-test/src/Main.purs#L30). It uses the `sampleOn` combinator to sample the relevant events every 20 milliseconds, and then uses the `foldp` combinator to modify the game state (Rudolf's position) based on these events.
+
+The final game can be played [here](http://paf31.github.io/24-days-of-purescript/signals-test/html/).
+
+Programming with signals is a lot of fun, especially when designing interactive web pages or games like these. I suggest you try it out!

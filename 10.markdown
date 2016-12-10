@@ -1,0 +1,108 @@
+# 10. `purescript-webaudio`
+
+Today, we're going to create purely functional Christmas Carols, using [@waterson](https://github.com/waterson)'s excellent `purescript-webaudio` library.
+
+If you're interested in seeing this library in action, you should check out the [Asteroids demo](http://www.maubi.net/asteroids/), by the same author.
+
+To begin, pull down a copy of the library into a new project using `Bower`:
+
+```text
+$ bower install https://github.com/waterson/purescript-webaudio
+```
+
+I worked from the examples projects in the `purescript-webaudio` repo, and used the following imports:
+
+```purescript
+module Main where
+
+import Control.Bind
+import Control.Monad.Eff
+
+import Data.DOM.Simple.Types
+import Data.DOM.Simple.Window
+
+import Audio.WebAudio.Types
+import Audio.WebAudio.AudioContext
+import Audio.WebAudio.AudioParam
+import Audio.WebAudio.OscillatorNode
+import Audio.WebAudio.DestinationNode
+```
+
+The web audio API defines different types of _nodes_ which can be connected to form networks. We will only be interested in the _oscillator_ node in this post. The network can then be connected to a _destination node_ on an audio context, which results in sound being generated.
+
+We can start by creating a new audio context:
+
+```purescript
+main :: forall eff. (Eff (wau :: WebAudio, dom :: DOM | eff) Unit)
+main = do
+  ctx <- makeAudioContext
+```
+
+Next, we can create an _oscillator node_ which will produce a sine wave:
+
+```purescript
+  osc <- createOscillator ctx
+  setOscillatorType Sine osc
+  startOscillator 0.0 osc
+```
+
+Now, we connect the oscillator node to the destination node on the audio context:
+
+```purescript
+  connect osc =<< destination ctx
+```
+
+And finally, we delegate to a helper function, `play`, which is responsible for playing our song, passing the context and oscillator nodes as arguments.
+
+```purescript
+  play ctx osc
+```
+
+The `play` function is very simple. It sets up a timer on the window object to update the oscillator every 10 milliseconds:
+
+```purescript
+play :: forall eff. AudioContext -> OscillatorNode -> Eff (wau :: WebAudio, dom :: DOM | eff) Unit
+play ctx osc = void $ setInterval globalWindow 10 update
+```
+
+The `update` function uses the `setValue` action from `purescript-webaudio` to change the frequency of the oscillator, based on the time:
+
+```purescript
+  where
+  update = do
+    t <- currentTime ctx
+    frequency osc >>= setValue (freqAt t)
+    return unit
+```
+
+The particular melody which is played depends on the `freqAt` function. Try some different functions - you might find a table of notes and frequencies to be helpful.
+
+Here is an example, which oscillates between two octaves, producing an alarm-like sound:
+
+```purescript
+freqAt t | t < 1 = 440
+         | t < 2 = 880
+         | otherwise = freqAt $ t - 2
+```
+
+However, in the spirit of the season, let's write a function which will render a popular Christmas carol. Here are the first four bars of Jingle Bells, in the form of a pure function:
+
+```purescript
+freqAt :: Number -> Number
+freqAt t | t <  4.50 = 164.81 * 2.0
+         | t <  5.00 = 196.00 * 2.0
+         | t <  5.75 = 130.81 * 2.0
+         | t <  6.00 = 146.83 * 2.0
+         | t <  8.00 = 164.81 * 2.0
+         | t < 10.50 = 174.61 * 2.0
+         | t < 12.00 = 164.81 * 2.0
+         | t < 13.00 = 196.00 * 2.0
+         | t < 13.50 = 174.61 * 2.0
+         | t < 14.00 = 146.83 * 2.0
+         | t < 16.00 = 130.81 * 2.0
+         | otherwise = freqAt $ t - 16
+```
+
+Try it out, and see what other melodies you can produce by varying the `freqAt` function. You may also be interested to try out some of the different node types provided by the `purescript-webaudio` library.
+
+I'm particularly interested to see what might be done with this library in conjunction with an FRP library, like `purescript-signal` or `purescript-behaviors`, using functions of multiple arguments to represent various node parameters.

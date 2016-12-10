@@ -1,0 +1,87 @@
+# 6. `purescript-lens`
+
+Today I will give a very basic introduction to the `purescript-lens` library, written by [@joneshf](https://github.com/joneshf/).
+
+`purescript-lens` is a partial port of Edward Kmett's [`lens`](https://hackage.haskell.org/package/lens) library from Haskell to PureScript.
+
+`lens` is an impressive library which solves a number of problems in vastly more generality than I am about to present, but hopefully the following should whet your appetite.
+
+Let's demonstrate the most simple functionality of the `purescript-lens` library - using lenses to update a part of a nested data structure. I should add that I have not used `lens` or `purescript-lens` before today, and my experience so far is that the types are somewhat complicated, but that following the examples is a good way to get started.
+
+Suppose we have the following data structures, representing an address book (I think these Christmas analogies are getting more convoluted ...):
+
+```purescript
+data Person = Person { name :: String
+                     , addr :: Address
+                     , type :: PersonType
+                     }
+
+data Address = Address { street :: String
+                       , city :: String
+                       }
+
+data PersonType = Naughty | Nice
+```
+
+Here, a `Person` contains a name, an `Address` and a `PersonType`. We can create an example `Person`:
+
+```purescript
+examplePerson :: Person
+examplePerson =
+  Person { name: "John Smith"
+         , addr: Address { street: "123 Fake St."
+                         , city: "Los Angeles"
+                         }
+         , type: Naughty      
+         }
+```
+
+Now suppose we want to update the `city` property of the `addr` property. This requires nested record updates, and the problem gets worse if our data structures use more levels of nesting.
+
+`purescript-lens` provides one solution. For each of our properties, we can define a `Lens`, using the `lens` function to specify getters and setters:
+
+```purescript
+name :: LensP Person String
+name = lens (\(Person p) -> p.name) (\(Person p) name -> Person (p { name = name }))
+
+address :: LensP Person Address
+address = lens (\(Person p) -> p.addr) (\(Person p) addr -> Person (p { addr = addr }))
+
+_type :: LensP Person PersonType
+_type = lens (\(Person p) -> p.type) (\(Person p) ty -> Person (p { type = ty }))
+
+street :: LensP Address String
+street = lens (\(Address a) -> a.street) (\(Address a) street -> Address (a { street = street }))
+
+city :: LensP Address String
+city = lens (\(Address a) -> a.city) (\(Address a) city -> Address (a { city = city }))
+```
+
+In `psci`, we can update various parts of the structure using the `.~` operator:
+
+```purescript
+> :i Optic.Core
+
+> examplePerson
+(Person "John Smith" (Address "123 Fake St." "Los Angeles") Naughty)
+
+> examplePerson # _type.~ Nice
+(Person "John Smith" (Address "123 Fake St." "Los Angeles") Nice)
+
+> examplePerson # address..city.~ "San Diego"
+(Person "John Smith" (Address "123 Fake St." "San Diego") Naughty)
+```
+
+Note that `purescript-lens` provides the `..` operator as a synonym for function composition (`<<<`), which makes the code easier to read.
+
+We can also use the `^.` operator to read nested properties from our structure:
+
+```purescript
+> examplePerson ^. _type
+Naughty
+
+> examplePerson ^. address..street
+"123 Fake St."
+```
+
+The `purescript-lens` library (and the associated `refractor` and `optic` libraries) provide a great deal more functionality than I have presented here, but I spent most of my time today getting up to speed with the basics. I, for one, will certainly be spending more time getting familiar with this excellent library, and I encorage you to try it for yourself.

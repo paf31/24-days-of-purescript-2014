@@ -1,0 +1,119 @@
+# 4. `purescript-canvas` and `purescript-free-canvas`
+
+Today, I'm going to show how to create an online Christmas card using the HTML5 Canvas API from PureScript. You can see the finished result [here](http://paf31.github.io/24-days-of-purescript/purescript-xmas-card/html/).
+
+I started working on the `purescript-canvas` library not long after I started work on the compiler itself, and it has since seen contributions from a number of community members. The `purescript-free-canvas` library provides a free monad interface to the Canvas API, which hides the 2D graphics context object from the user.
+
+At this point, both libraries provide quite a complete representation of the HTML5 API, but there are still some features missing. If you would like to help to flesh out the remaining calls, then check out the [issues board](https://github.com/purescript-contrib/purescript-canvas/issues).
+
+To follow along, start a new project using `grunt-init`, and install the `purescript-math` and `purescript-free-canvas` libraries using Bower.
+
+We can start by getting a reference to the canvas object and its graphics context:
+
+```purescript
+module Main where
+
+import Control.Monad.Eff
+
+import Graphics.Canvas (getCanvasElementById, getContext2D)
+import Graphics.Canvas.Free
+
+main = do
+  canvas <- getCanvasElementById "canvas"
+  context <- getContext2D canvas
+
+  runGraphics context $ do
+    -- Canvas API calls will go here
+```
+
+The first step will be to fill the canvas background with a solid color:
+
+```purescript
+    setFillStyle "#00FFFF"
+    rect { x: 0, y: 0, w: 400, h: 600 }
+    fill
+```
+
+Inside the call to `runGraphics`, our code runs in the `Graphics` (free) monad, so we don't need to worry about passing around the context object. We only do that once in the call to `runGraphics` itself.
+
+Next, let's draw the tree. Start by setting the fill color to green, and adding a shadow:
+
+```purescript
+    setFillStyle "#008000"
+    setShadowColor "#00FF00"
+    setShadowBlur 5
+```
+
+Note how similar this code looks to regular Canvas code written in JavaScript. However, we get all of the benefits of writing code in PureScript, including type checking!
+
+To draw the tree, we will make use of a combinator called `at`, which translates a set of drawing commands across some vector:
+
+```purescript
+at x y gfx = do
+  save
+  translate x y
+  gfx
+  restore
+```
+
+Note how `at` wraps our action in calls to `save` and `restore`, which means that the state of the graphics context is preserved after the call to `at`. This is a good example of the benefits of higher-order functions.
+
+Here is the code for the body of the tree:
+
+```purescript
+    at 200 175 do
+      beginPath
+      triangle
+      at 0 50 triangle
+      at 0 100 triangle
+      closePath
+      rect { x: (-40), y: 200, w: 80, h: 50 }
+      fill
+```
+
+Three tree consists of a path made up of three triangles and a rectangle. The `triangle` action is defined as follows at the top-level:
+
+```purescript
+triangle = do
+  moveTo 0 (-100)
+  lineTo 75 100
+  lineTo (-75) 100
+```
+
+Next, let's add some baubles to the tree:
+
+```purescript
+      setFillStyle "#FFFF00"
+      at (-10) (-10) $ bauble 10
+      at (-20)   50  $ bauble 10
+      at    0   100  $ bauble 10
+      at (-20)  140  $ bauble 10
+      at   20   190  $ bauble 7
+      at   30    50  $ bauble 7
+      at (-50)   75  $ bauble 7
+      at (-40)  180  $ bauble 7
+      at   50   125  $ bauble 7
+      at   40   175  $ bauble 7
+```
+
+Again, the `bauble` function is defined as a reusable helper:
+
+```purescript
+bauble size = do
+  beginPath
+  arc { x: 0, y: 0, r: size, start: 0, end: Math.pi * 2 }
+  fill
+```
+
+You can try rewriting this to specify the bauble positions in an array, using `traverse` to loop over the array.
+
+Finally, to add the text at the top and bottom, we can use the `fillText` action, as follows:
+
+```purescript
+    setFillStyle "#FF0000"
+    setFont "48px Sans-Serif"
+    fillText "Merry Christmas" 25 50
+    fillText "From PureScript!" 20 480
+```
+
+And that's it! A PureScript Christmas card in under 70 lines of code. Try making your own, and tell your relatives that you made your Christmas cards with free monads!

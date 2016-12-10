@@ -1,0 +1,75 @@
+# 8. `purescript-machines`
+
+Today, I'm going to look at the `purescript-machines` library by [@jdegoes](https://github.com/jdegoes/), which can be used to create finite state machines in PureScript.
+
+The `purecript-machines` library provides an implementation of Mealy machines, which we can use to separate our code into components which are responsible for either producing or consuming data (or both). Our machines can act over any `Monad`, which as we will see, is very helpful when we need to deal with asynchronous data sources in a non-blocking way.
+
+Here is a very simple example to get started:
+
+```purescript
+module Main where
+
+import Data.Machine.Mealy
+import Control.Monad.Eff
+import Debug.Trace
+
+main = runMealy machine
+  where
+  machine = take 100 (loop (return "Merry Christmas!")) >>> sink trace
+```
+
+Here, we can factor our code into a source and a sink:
+
+```purescript
+main = runMealy machine
+  where
+  machine = greetings >>> printer
+  greetings = take 100 (loop (return "Merry Christmas!"))
+  printer = sink trace
+```
+
+Note that the usual function composition operator `>>>` is being used here in its more polymorphic form, taken from the `Category` type class. The `purescript-machines` library provides a rich array of standard type class implementations for its `MealyT` type constructor, which can be used to build complex state machines.
+
+Now suppose that we want to ask for the user's name before offering them a more personalized greeting. We can write a function which uses the continuation monad to represent a call to the `readline` module, to read a string from standard input. I won't reproduce the code here, but the function will have the following type signature:
+
+```purescript
+type AppC = ContT Unit App
+
+questionC :: String -> AppC String
+```
+
+With that, we can modify our `greetings` and `printer` machines accordingly:
+
+```purescript
+greetings :: Source AppC String
+greetings = take 5 $ loop $ source $ questionC "What is your name? "
+
+printer :: Sink AppC String
+printer = do
+  name <- id
+  wrapEffect $ lift $ trace $ "Merry Christmas, " <> name
+```
+
+Note that the `printer` machine uses a trick here to get hold of the upstream value: the polymorphic type of `id` gets instantiated to the type `MealyT f a a`, which means that the result type of our computation is actually the type of the source. We can then use `wrapEffect` to wrap the effectful code which prints the greeting to the screen.
+
+In our `main` function, we simply need to call `runContT` in order to run the final asynchronous computation:
+
+```purescript
+main = flip runContT return $
+         runMealy $
+           greetings >>> printer
+```
+
+We can run the compiled code using `node`, and see how the two machines interact:
+
+```text
+What is your name? Phil
+Merry Christmas, Phil
+What is your name? John
+Merry Christmas, John
+What is your name? Mary
+Merry Christmas, Mary
+What is your name? ...
+```
+
+This has really only covered the basics of the `purescript-machines` library. The `Data.Machine.Mealy` module provides a lot more functionality, which is well worth exploring.

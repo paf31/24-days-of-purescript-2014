@@ -1,0 +1,111 @@
+# 21. `purescript-options`
+
+Today, I'm going to look at the `purescript-options` package by [@ethul](http://github.com/ethul).
+
+Options objects are one example of a idiomatic JavaScript code which does not fit cleanly into PureScript's type system. Take something like JQuery's AJAX options object for example. We might have any of dozens of options specified, or we might have none. There is no record type which directly captures these values.
+
+However, PureScript's FFI is flexible, and allows us to define new interesting types in user code. `purescript-options` uses the FFI to allow us to define our own options objects, while still keeping a lot of the benefits of static typing.
+
+The library can be installed using Bower:
+
+```text
+$ pulp init
+$ bower i git@github.com:ethul/purescript-options.git
+```
+
+I'm going to walk through the creation of a type for a subset of the options provided in the JQuery AJAX options documentation.
+
+First of all, we need to create a type with which we will tag all of our properties:
+
+```purescript
+foreign import data JQueryAJAXOptions :: *
+```
+
+Next, we need to create value-level representations of the properties which we want to allow. Each of these has type `Option JQueryAJAXOptions a`, for some type `a`, and at runtime will simply be represented by a string. To keep things simple, I'll define a foreign import called `unsafeToOption`:
+
+```purescript
+foreign import unsafeToOption
+  "function unsafeToOption(s) {\
+  \  return s;\
+  \}" :: forall a. String -> Option JQueryAJAXOptions a
+```
+
+The idea is that this function would not be exported from our options module. Now, I can define the options I care about:
+
+```purescript
+async :: Option JQueryAJAXOptions Boolean
+async = unsafeToOption "async"
+
+contentType :: Option JQueryAJAXOptions String
+contentType = unsafeToOption "contentType"
+
+timeout :: Option JQueryAJAXOptions Number
+timeout = unsafeToOption "timeout"
+
+url :: Option JQueryAJAXOptions String
+url = unsafeToOption "url"
+```
+
+Note that the type of each option reflects the type of the data it will contain.
+
+It is also possible to define complex options, by defining our own type of values, and specifying an instance for the `IsOption` type class. For example, here is an option which captures exactly those values allowed in the `dataType` field of the AJAX options object:
+
+```purescript
+data DataType = XML | HTML | Script | JSON | JSONP
+
+dataTypeToString :: DataType -> String
+dataTypeToString XML    = "xml"
+dataTypeToString HTML   = "html"
+dataTypeToString Script = "script"
+dataTypeToString JSON   = "json"
+dataTypeToString JSONP  = "jsonp"
+
+data DataTypes = DataTypes [DataType]
+
+instance optionDataTypes :: IsOption DataTypes where
+  (:=) k (DataTypes ts) = (optionFn k) := intercalate " " (dataTypeToString <$> ts)
+
+dataType :: Option JQueryAJAXOptions DataTypes
+dataType = unsafeToOption "dataType"
+```
+
+Now, to build an options object, we simply pair keys with values, using the `:=` operator. Multiple values are concatenated using the `<>` operator, as follows:
+
+```purescript
+opts :: Options JQueryAJAXOptions
+opts = async       := true
+    <> contentType := "application/json"
+    <> timeout     := 10000
+    <> url         := "/"
+    <> dataType    := DataTypes [XML, JSON]
+```
+
+Finally, we can render an `Options JQueryAJAXOptions` value as a `Foreign` value, for use with external libraries, by using the `options` function. `options` converts each value into the appropriate form, taking care of things like turning `Nothing` into `null`:
+
+```purescript
+foreign import log
+  "function log(a){\
+  \  return function() {\
+  \    console.log(a);\
+  \  };\
+  \}" :: forall a eff. a -> Eff (trace :: Trace | eff) Unit
+
+main = let optsValue = options opts
+       in log optsValue
+```
+
+If we run this code, we see a correctly-formed options object printed to the console:
+
+```text
+$ pulp run
+
+{ async: true,
+  contentType: 'application/json',
+  timeout: 10000,
+  url: '/',
+  dataType: 'xml json' }
+```
+
+`purescript-options` provides a nice solution to a tricky problem, and I think really shows off how PureScript's flexible FFI allows us to interface with idiomatic JavaScript code while still maintaining type safety.
+
+Today's code is available [here](https://github.com/paf31/24-days-of-purescript/blob/gh-pages/options-example/src/Main.purs).

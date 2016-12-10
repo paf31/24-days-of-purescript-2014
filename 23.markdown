@@ -1,0 +1,34 @@
+# 23. Pursuit
+
+Today, I'd like to highlight some of the interesting recent changes to the [Pursuit search engine](http://pursuit.purescript.org/), made by PureScript's community members.
+
+If you're not familiar with it, Pursuit is a simple search engine which indexes PureScript values and types by name, and runs in the browser. It is modelled on tools like [Hoogle](www.haskell.org/hoogle/) and [Hayoo!](http://hayoo.fh-wedel.de/) for Haskell, but does not yet provide the same functionality (most notably, Pursuit is missing type-based search).
+
+However, Pursuit is already a useful tool, and if nothing else, provides a compact example of a functional PureScript application in the browser.
+
+I started Pursuit as a tiny prototype, with the hope that it could become a community project. Since then, community members have added some neat features:
+
+### URI Integration
+
+[@joneshf](http://github.com/joneshf) has added code to make use of the History API, and a simple URI integration, allowing the user to share links like [pursuit.purescript.org/?runStateT](http://pursuit.purescript.org/?runStateT).
+
+This should also be useful going forward in editor plugins which would like to provide a term-search functionality.
+
+### Bower Integration
+
+[@hdgarrood](http://github.com/hdgarrood) has been working on integration with Bower, which should allow developers to get their library added to Pursuit more easily:
+
+- A daily job reads a `libraries.json` file, which contains a list of Git repositories, clones them and runs a generator tool to extract documentation from PureScript code.
+- Nginx serves the generated database to the browser, which runs PureScript code to display the search engine UI.
+- Developers can submit a pull request on [`libraries.json`](https://github.com/purescript/pursuit/blob/gh-pages/generator/libraries.json) to add their library to Pursuit, and their code will be documented when the job next runs.
+
+### Future Plans
+
+We also have some interesting new features planned:
+
+- We hope to move the data to the server, by writing a web service in Haskell. This should improve the initial load time as the data grows, and generally allow us to support larger numbers of libraries. This will also involve the creation of a web API which will allow custom integrations into command line tools and editors.
+- I would like to integrate Pursuit into the [purescript.org](http://purescript.org) website.
+- I would like to support more interesting searches, as well as type-based search.
+- We will start to include documentation in search results. This relies on recent work on the PureScript lexer, and should be possible soon.
+
+Generally, there are [plenty of issues](https://github.com/purescript/pursuit/issues) listed on the GitHub page for any PureScript or Haskell developers who are interested in contributing.

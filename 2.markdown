@@ -1,0 +1,84 @@
+# 2. `purescript-foreign`
+
+To kick things off, I'm going to discuss the `purescript-foreign` library, one of the earliest PureScript community-driven libraries, written by [Gary Burgess](https://github.com/garyb) and other contributors.
+
+`purescript-foreign` provides the means to interoperate with untrusted JavaScript code, which includes both parsing JSON data, and validating the types of untrusted data at runtime.
+
+In what situations is this useful? Well, suppose we want to load application data from a web service which returns JSON data. Assuming the data is well-formed relative to some schema, we can simply give the action the appropriate (effectful) type, and use the data as it is returned, being sure to take things like exceptions and the HTTP status of the response into account. However, in reality, the returned data might be incorrectly formed according to our schema, or just plain invalid JSON. In this case, we have to resort to checking the data at runtime. `purescript-foreign` provides a way to perform that task in a structured manner.
+
+A good example of this approach is the [Pursuit](http://pursuit.purescript.org/) application, which is tool for looking up functions by name in the PureScript standard library. Pursuit loads its data from a JSON file stored on the server, and uses `purescript-foreign` to turn that untrusted data into its internal, typed representation.
+
+Pursuit's application data consists of an array of JSON objects, each with three `String` fields, `name`, `module` and `detail`:
+
+```javascript
+[
+  {
+    "name": "flip",
+    "module": "Prelude",
+    "detail": "flip :: forall a b c. (a -> b -> c) -> b -> a -> c"
+  },
+  ...
+]
+```
+
+The application defines a type `Entry` which respresents these objects:
+
+```purescript
+data Entry = Entry String String String
+```
+
+To read these values from a JSON document using `purescript-foreign`, the application provides an instance of the `IsForeign` type class:
+
+```purescript
+instance isForeignEntry :: IsForeign Entry where
+  read entry = Entry <$> readProp "module" entry
+                     <*> readProp "name"   entry
+                     <*> readProp "detail" entry
+```
+
+Here, we use the `Applicative` combinators to build larger parsers from smaller parsers, just as we would do in Haskell libraries like Parsec or Aeson.
+
+The `IsForeign` class provides a very simple interface:
+
+```purescript
+type F = Either ForeignError
+
+class IsForeign a where
+  read :: Foreign -> F a
+```
+
+The polymorphic `read` function can be used to turn an untrusted value (represented by the `Foreign` type) into either a checked value with some known type, or an error.
+
+With this instance, the application can load its data from its JSON configuration file:
+
+```purescript
+readData :: String -> T.Trie Entry
+readData json = case readJSON json of
+  Left err -> error $ show err
+  Right arr -> ...
+```
+
+The `Foreign` data type also solves another related problem: how do we give appropriate types to foreign functions which might return untrusted or unstructured data? The answer is that we can always use the `Foreign` type in a foreign function type in any place where we are uncertain of the structure of the data. This effectively forces the user to use the `purescript-foreign` API to turn the untrusted data into usable, checked data.
+
+A simple example is when we want to interact with a JavaScript function which might return `null` or `undefined`. The `Data.Foreign.NullOrUndefined` module provides a newtype whose `IsForeign` instance handles these cases using the `Maybe` type constructor:
+
+```purescript
+newtype NullOrUndefined a = NullOrUndefined (Maybe a)
+
+runNullOrUndefined :: forall a. NullOrUndefined a -> Maybe a
+```
+
+Now, we can define our FFI in two steps. At the lower level, we can use `Foreign` to represent the untrusted data:
+
+```purescript
+foreign import jsFunc :: String -> Foreign
+```
+
+In the module exports, however, we present a sanitised version of the function, which uses `NullOrUndefined` to represent the missing data:
+
+```purescript
+jsFunc' :: String -> F (Maybe String)
+jsFunc' s = runNullOrUndefined <$> read (jsFunc s)
+```
+
+For more information on the `purescript-foreign` library, check out the [FFI chapter in the book](https://leanpub.com/purescript/read#leanpub-auto-the-foreign-function-interface), which uses the library to read application data from the browser's local storage.

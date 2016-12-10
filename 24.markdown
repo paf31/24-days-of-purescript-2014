@@ -1,0 +1,13 @@
+# 24. Summary
+
+Over the past 24 days, we've seen lots of examples of interesting PureScript libraries from the community - some inspired by existing JavaScript libraries, others inspired by Haskell code, and yet others providing entirely novel functionality.
+
+It's been a great experience to set aside time to familiarise myself with all of these libraries, even if I did only cover each one in a small amount of detail. I was able to learn a lot about libraries which I have never tried before. `lens`, React, D3 and Express to name a few - and brush up on plenty which I haven't used for a while.
+
+I'd like to say a big "thank you" to everyone who contributed to these libraries. The explosion of PureScript libraries over the last year is truly a testament to the quality of our community!
+
+There were plenty of interesting libraries which I did not have time to cover ([this page](https://github.com/search?o=desc&q=purescript&ref=cmdform&s=updated&type=Repositories) gives an idea of the selection I had to work with this year), so if I missed your library, I'm sorry, but I would encourage you to write about it in a blog post, or on [the PureScript wiki](http://wiki.purescript.org).
+
+Finally, I hope this blog series has encouraged more people to write their own PureScript libraries. As I mentioned at the start of the series, we have no shortage of JavaScript libraries which can be wrapped from PureScript. Join our community on Freenode IRC or [Google Groups](https://groups.google.com/forum/#!forum/purescript), and we can provide guidance as you get started. I look forward to another year's worth of excellent libraries!
+
+Until next year!

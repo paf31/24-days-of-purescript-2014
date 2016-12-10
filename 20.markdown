@@ -1,0 +1,277 @@
+# 20. `purescript-algebra`
+
+Today, I took some time to look through [@joneshf](http://github.com/joneshf)'s `purescript-algebra` package, which provides a variety of abstractions for algebraic structures using types classes, such as groups, rings, modules and lattices.
+
+PureScript's core libraries already provide some of this functionality in libraries like the Prelude and `purescript-monoid`, but this library goes much further in this direction.
+
+To begin, consider the probability monad. If you're not familiar with it, the monad provides a list of outcomes, each of which carries a probability:
+
+```purescript
+data Outcome a = Outcome Number a
+
+instance showOutcome :: (Show a) => Show (Outcome a) where
+  show (Outcome p x) = "(Outcome " ++ show p ++ " " ++ show x ++ ")"
+
+data Prob a = Prob [Outcome a]
+
+runProb :: forall a. Prob a -> [Outcome a]
+runProb (Prob xs) = xs
+```
+
+And here are the corresponding instances:
+
+```purescript
+instance functorOutcome :: Functor Outcome where
+  (<$>) f (Outcome p x) = Outcome p (f x)
+
+instance functorProb :: Functor Prob where
+  (<$>) f (Prob xs) = Prob ((<$>) f <$> xs)
+
+instance applyProb :: Apply Prob where
+  (<*>) = ap
+
+instance applicativeProb :: Applicative Prob where
+  pure x = Prob [Outcome 1 x]
+
+instance bindProb :: Bind Prob where
+  (>>=) (Prob xs) f = Prob do
+    Outcome p x <- xs
+    Outcome q y <- runProb (f x)
+    return $ Outcome (p * q) y
+
+instance monadProb :: Monad Prob
+```
+
+We can use this monad to calculate various probabilities, like the probability of rolling a seven given two fair dice:
+
+```purescript
+die :: Prob Number
+die = Prob
+  [ Outcome (1 / 6) 1
+  , Outcome (1 / 6) 2
+  , Outcome (1 / 6) 3
+  , Outcome (1 / 6) 4
+  , Outcome (1 / 6) 5
+  , Outcome (1 / 6) 6
+  ]
+
+main = Debug.Trace.print $ runProb do
+  d1 <- die
+  d2 <- die
+  if d1 + d2 == 7 then return [d1, d2] else Prob []
+```
+
+Here is the output, suitably tidied:
+
+```text
+$ pulp run
+
+[ (Outcome 0.02778 [1, 6])
+, (Outcome 0.02778 [2, 5])
+, (Outcome 0.02778 [3, 4])
+, (Outcome 0.02778 [4, 3])
+, (Outcome 0.02778 [5, 2])
+, (Outcome 0.02778 [6, 1])
+]
+```
+
+The `Monad` instance also let's us calculate conditional probabilities. For example, suppose we throw one die, and then if we roll a three or higher, we are required to throw a loaded die on the second throw:
+
+```purescript
+loaded :: Prob Number
+loaded = Prob
+  [ Outcome (1 / 10) 1
+  , Outcome (1 / 10) 2
+  , Outcome (1 / 10) 3
+  , Outcome (1 / 10) 4
+  , Outcome (1 / 10) 5
+  , Outcome (1 / 2)  6
+  ]
+
+main = Debug.Trace.print $ runProb do
+  d1 <- die
+  d2 <- if d1 == 6 then loaded else die
+  if d1 + d2 == 7 then return [d1, d2] else Prob []
+```
+
+This time, our chance of rolling a seven is lower, as you might expect:
+
+```main
+$ pulp run
+
+[ (Outcome 0.02778 [1, 6])
+, (Outcome 0.02778 [2, 5])
+, (Outcome 0.01667 [3, 4])
+, (Outcome 0.01667 [4, 3])
+, (Outcome 0.01667 [5, 2])
+, (Outcome 0.01667 [6, 1])
+]
+```
+
+We can also write a function `normalize`, which groups together equal outcomes, and combines their probability:
+
+```purescript
+normalize :: forall a. (Ord a) => Prob a -> Prob a
+normalize (Prob xs) = Prob (map combine $ groupBy ((==) `on` value) $ sortBy (compare `on` value) xs)
+  where
+  value :: Outcome _ -> _
+  value (Outcome _ x) = x
+
+  prob :: Outcome _ -> Number
+  prob (Outcome p _) = p
+
+  sum :: [Number] -> Number
+  sum [] = 0
+  sum (n : ns) = sum ns + n
+
+  combine :: [Outcome _] -> Outcome _
+  combine xs =        
+    let p = sum $ map prob xs
+        x = value $ head xs
+    in Outcome p x
+```
+
+Now, we can find the distribution of the sum of the two thrown dice:
+
+```purescript
+main = Debug.Trace.print $ runProb $ normalize do
+  d1 <- die
+  d2 <- if d1 >= 3 then loaded else die
+  return $ d1 + d2
+```
+
+```text
+$ pulp run
+
+[ (Outcome 0.0277 2)
+, (Outcome 0.0555 3)
+, (Outcome 0.0722 4)
+, (Outcome 0.0888 5)
+, (Outcome 0.1055 6)
+, (Outcome 0.1222 7)
+, (Outcome 0.0944 8)
+, (Outcome 0.1333 9)
+, (Outcome 0.1166 10)
+, (Outcome 0.0999 11)
+, (Outcome 0.0833 12)
+]
+```
+
+It turns out, we can generalize this monad and the `normalize` function. Instead of working with probabilities of type `Number`, we can work with probabilities of any type which is a "rig" (i.e. a ring without additive inverses).
+
+Let's start by parameterizing our `Prob` monad on the type of probabilities:
+
+```purescript
+data Outcome p a = Outcome p a
+
+instance showOutcome :: (Show p, Show a) => Show (Outcome p a) where
+  show (Outcome p x) = "(Outcome " ++ show p ++ " " ++ show x ++ ")"
+
+data Prob p a = Prob [Outcome p a]
+
+runProb :: forall p a. Prob p a -> [Outcome p a]
+runProb (Prob xs) = xs
+```
+
+To generalize our instances, we simply replace `1` and `*` by the `Monoid.one` and `Monoid.*` from the `MultSemigroup` and `MultMonoid` type classes respectively:
+
+```purescript
+instance functorOutcome :: Functor (Outcome p) where
+  (<$>) f (Outcome p x) = Outcome p (f x)
+
+instance functorProb :: Functor (Prob p) where
+  (<$>) f (Prob xs) = Prob ((<$>) f <$> xs)
+
+instance applyProb :: (Monoid.MultSemigroup p, Monoid.MultMonoid p) => Apply (Prob p) where
+  (<*>) = ap
+
+instance applicativeProb :: (Monoid.MultSemigroup p, Monoid.MultMonoid p) => Applicative (Prob p) where
+  pure x = Prob [Outcome Monoid.one x]
+
+instance bindProb :: (Monoid.MultSemigroup p, Monoid.MultMonoid p) => Bind (Prob p) where
+  (>>=) (Prob xs) f = Prob do
+    Outcome p x <- xs
+    Outcome q y <- runProb (f x)
+    return $ Outcome (p Monoid.* q) y
+
+instance monadProb :: (Monoid.MultSemigroup p, Monoid.MultMonoid p) => Monad (Prob p)
+```
+
+We can perform a similar generalization on the `normalize` function, replacing `0` and `+` with `Monoid.zero` and `Monoid.+`, giving the following type signature:
+
+```purescript
+normalize :: forall p a. (Ord a, Monoid.AddMonoid p) => Prob p a -> Prob p a
+```
+
+The existing code should compile and run as before, since `purescript-algebra` provides the appropriate instances for the `Number` type.
+
+So why is this useful? Well, we can now work in any rig. You may have heard that the probability monad can be repurposed to describe quantum wavefunctions by replacing `Number` with the rig of complex numbers, but here is another example which you might not have seen before.
+
+```purescript
+newtype Priority = Priority Number
+
+instance showPriority :: Show Priority where
+  show (Priority n) = show n
+
+instance addPriority :: Monoid.AddSemigroup Priority where
+  (+) (Priority p) (Priority q)
+    | p > q     = Priority p
+    | otherwise = Priority q
+
+foreign import inf "var inf = Infinity" :: Number
+
+instance addMonoidPriority :: Monoid.AddMonoid Priority where
+  zero = Priority (-inf)
+
+instance multPriority :: Monoid.MultSemigroup Priority where
+  (*) (Priority p) (Priority q) = Priority (p + q)
+
+instance multSemigroup :: Monoid.MultMonoid Priority where
+  one = Priority 0
+```
+
+This code defines a rig of priorities, represented by the `Number` type. The additive monoid is given by the `max` operator, and the multiplicative monoid is just regular numeric addition.
+
+This rig gives a `Monad` for talking about priority queues:
+
+```purescript
+todo :: Prob Priority String
+todo = Prob
+  [ Outcome (Priority 10) "Buy a Christmas tree"
+  , Outcome (Priority 20) "Buy gifts"
+  , Outcome (Priority 5)  "Bake mince pies"
+  ]
+
+gifts :: Prob Priority String
+gifts = Prob
+  [ Outcome (Priority 20) "John"
+  , Outcome (Priority 5)  "Mary"
+  , Outcome (Priority 30) "Jack"
+  ]
+
+main = Debug.Trace.print $ runProb $ normalize do
+  task <- todo
+  subTask <- case task of
+               "Buy gifts" -> gifts
+               _ -> return ""
+  return $ task <> ": " <> subTask
+```
+
+Running this code, produces a combined priority list:
+
+```text
+$ pulp run
+
+[ (Outcome 5  "Bake mince pies: ")
+, (Outcome 10 "Buy a Christmas tree: ")
+, (Outcome 50 "Buy gifts: Jack")
+, (Outcome 40 "Buy gifts: John")
+, (Outcome 25 "Buy gifts: Mary")
+]
+```
+
+The multiplicative monoid tells us that when one task depends on another, we can combine their priorities using addition. The additive monoid tells us that if one task appears twice in our list, we can just take the occurence with the higher priority during a call to `normalize`. The `Priority` rig (also known as the _tropical_ rig) might even form the basis of a purely functional priority queue in an application where operations determined sets of operations with new priorities.
+
+So, in the same piece of code, we have defined a priority queue monad _and_ a probability monad. That's not bad! This is the power of abstractions like the ones in the `purescript-algebra` package - they allow us to talk about algorithms in much more generality, often making new applications apparent.
+
+The code for today's example is available [here](https://github.com/paf31/24-days-of-purescript/blob/gh-pages/algebra-examples/src/Main.purs).

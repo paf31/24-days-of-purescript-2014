@@ -1,0 +1,55 @@
+# 15. `purescript-hatter`
+
+Today, I have been looking at the `purescript-hatter` DOM templating library by [@mechairoi](http://github.com/mechairoi).
+
+Hatter is a very interesting library, because it solves a problem which would normally be solved using something like Template Haskell (which does not yet exist for PureScript, but which is planned): compile-time code generation.
+
+The `purescript-hatter` library itself contains a parser and code generator, but also comes with a set of companion libraries: `gulp-purescript-hatter` which embeds the code generation capability into the build process using the Gulp build automation tool, and `purescript-hatter-runtime`, which contains the runtime needed to support the generated code.
+
+Hatter targets the `virtual-dom` library using the `purescript-virtual-dom-typed` bindings, which means that the generated templates should generally be very fast, and support partial updates.
+
+Here, I'm just going to give a very brief overview of the functionality.
+
+I created a new project using `pulp`, and installed `purescript-hatter` and `purescript-virtual-dom-typed` using Bower. My `Main` module uses the following imports from Hatter:
+
+
+```purescript
+import Text.Hatter
+import Text.Hatter.Parser
+```
+
+Based on the example in the repository, I came up with the following template:
+
+```purescript
+input :: String
+input =
+  "greet :: String -> VirtualDOM.VTree.VTree\n\
+  \greet name =\n\
+  \<p style='color: red'>\n\
+  \  Merry Christmas,\n\
+  \  <span style='font-weight: bold'>\n\
+  \    <% VirtualDOM.VTree.vtext name %>\n\
+  \  </span>\n\
+  \</p>"
+```
+
+Hopefully, when Template PureScript is functional, it will be possible to embed code like this directly into a quasiquoter.
+
+Notice how Hatter allows us to embed HTML directly into PureScript code. After code generation, this means that our HTML will benefit from type checking, while keeping all the performance benefits of a statically-defined template.
+
+The `<% ... %>` brackets also allow us to embed `virtual-dom` elements back into the HTML structure. From what I can tell, attributes and text content can also be templated in this way.
+
+Here is my `main` function:
+
+```purescript
+main =
+  case hatter "Greeting" ["VirtualDOM.VTree"] input of
+    Left err -> print err
+    Right purs -> trace purs
+```
+
+I specified the module name `Greeting`, and my imports list, and this was enough to get Hatter to generate some PureScript code for my template. This code can then be built as part of your application.
+
+I had a little trouble with versions of various Bower packages, but many of these bindings are new, and hopefully we will see them stabilize along with the upstream packages like `purescript-virtual-dom`.
+
+That's it for my brief overview, but I urge you to try this excellent library out for yourselves. I think that `virtual-dom` is a great match for PureScript, and I look forward to seeing more interesting integrations like this.

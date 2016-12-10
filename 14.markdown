@@ -1,0 +1,109 @@
+# 14. `yesod-purescript`
+
+Today, I've been looking at the `yesod-purescript` library, which allows PureScript code to be compiled as part of a Yesod website.
+
+`yesod-purescript` is created by [@mpietrzak](http://github.com/mpietrzak), who has done a wonderful job of documenting the library, including a getting started guide in the [README file](https://github.com/mpietrzak/yesod-purescript/blob/master/README.md), and even a [fully-worked example project](https://github.com/mpietrzak/yesod-purescript-sample). I have not done a great deal of work with Yesod in the past, but I was able to get up and running in 30 minutes (not including the time to `cabal install` the necessary libraries).
+
+I started by using `cabal init` to create a new Cabal project in a sandbox, followed by `cabal install`ing `yesod-core` and `yesod-purescript` (from the cloned repository). From there, I created an empty Yesod website in `Main.hs`, using the name `Greeting` for my site's foundation type:
+
+```haskell
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+module Main where
+
+import qualified Yesod.Core as Y
+
+data Greeting = Greeting
+
+Y.mkYesod "Greeting" [Y.parseRoutesNoCheck|
+/     Home  
+|]
+
+instance Y.Yesod Greeting
+
+handleHome :: Handler ()
+handleHome = return ()
+
+main = Y.warp 8080 Greeting
+```
+
+This project should compile and run, opening a web server on port `8080`. The site will serve an empty page at the root `/`.
+
+From there, I simply followed the instructions in the `yesod-purescript` `README` file:
+
+1. I added an import for the `Yesod.PureScript` module:
+
+    ```haskell
+    import qualified Yesod.PureScript as Y
+    ```
+
+1. I modified my site's foundation type to include a value of type `PureScriptSite`, and added an instance for the `YesodPureScript` type class:
+
+    ```haskell
+    data Greeting = Greeting { getPureScriptSite :: Y.PureScriptSite }
+
+    instance Y.YesodPureScript Greeting
+    ```
+
+1. I updated my routing table to route `/purs` to my new subsite:
+
+    ```haskell
+    Y.mkYesod "Greeting" [Y.parseRoutesNoCheck|
+    /     Home  
+    /purs PureScript Y.PureScriptSite getPureScriptSite
+    |]
+    ```
+
+1. I updated `main` to create the subsite using `createYesodPureScriptSite`:
+
+    ```haskell
+    main = do
+      purs <- Y.createYesodPureScriptSite def
+      Y.warp 8080 $ Greeting purs
+    ```
+
+At this point, if you compile and run the project, you should be able to open your browser to `localhost:8080/purs` and see the `yesod-purescript` status page, which lists PureScript modules and their compilation status.
+
+However, we don't have any PureScript modules yet, so let's create one.
+
+Create `purs/` and `bower_components/` directories in your project's root directory, and copy the Prelude files from your PureScript distribution's `share` directory into `purs/`. Also create a `purs/Main.purs` file, for example:
+
+```purescript
+module Main where
+
+import Control.Monad.Eff
+
+foreign import data Alert :: !
+
+foreign import alert
+  "function alert(s) {\
+  \  return function() {\
+  \    window.alert(s);\
+  \  };\
+  \}" :: forall eff. String -> Eff (alert :: Alert | eff) Unit
+
+main = alert "Merry Christmas!"
+```
+
+Finally, we need to update our home page route to include the compiled PureScript code:
+
+```haskell
+handleHome :: Handler Y.Html
+handleHome = do
+  Y.defaultLayout $ do
+    Y.setTitle "Merry Christmas from PureScript!"
+    Y.addScript $ PureScript $ Y.getPureScriptRoute ["Main"]
+```
+
+Now, if you recompile and refresh the page at `localhost:8080/purs`, you will hopefully see a list of successfully compiled modules. If you open the browser to the home page at `localhost:8080/`, the compiled JavaScript code will be run, resulting in a call to `window.alert`.
+
+The neat thing about `yesod-purescript` is that you can develop your PureScript code in the `purs/` directory without needing to recompile or even restart your Yesod application. If your PureScript modules change, they will be recompiled on the next page load.
+
+I think that `yesod-purescript` is a great way to get started with any project which uses a Haskell backend and a PureScript frontend, and I hope to make use of it in an upcoming project.
+
+My complete project code is available [here](https://github.com/paf31/24-days-of-purescript/tree/gh-pages/yesod-purescript-example).
+
+Until tomorrow...

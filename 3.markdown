@@ -1,0 +1,179 @@
+# 3. `purescript-easy-ffi` and `purescript-oo-ffi`
+
+Today, I'm going to look at two more libraries which help with the tricky problem of integrating with the untyped world of JavaScript. The first is `purescript-easy-ffi`, by [@pelotom](https://github.com/pelotom), and the second is `purescript-oo-ffi`, by [@fresheyeball](https://github.com/Fresheyeball).
+
+### `purescript-easy-ffi`
+
+PureScript's FFI is quite easy to explain, but not quite to easy to use in many cases. For example, suppose you want to wrap a JavaScript function of several arguments. Let's take the extended `JSON.stringify` function as a simple example. You have two options:
+
+1. Write a curried version of the function:
+
+    ```purescript
+    foreign import stringify
+      "function stringify(n) {\
+      \  return function (x) {\
+      \    return JSON.stringify(x, null, n);\
+      \  };\
+      \}" :: forall a. Number -> a -> String
+    ```
+
+1. Use `Data.Function` to write a function of multiple arguments, and then wrap that function to provide a curried alternative:
+
+    ```purescript
+    import Data.Function
+
+    foreign import stringify
+      "function stringify(n, x) {\
+      \  return JSON.stringify(x, null, n);\
+      \}" :: forall a. Fn2 Number a String
+
+    stringify' :: forall a. Number -> a -> String
+    stringify' n x = runFn2 stringify n x
+    ```
+
+Both approaches involve quite a lot of boilerplate, either in JavaScript or in PureScript code. In many cases, especially for prototyping purposes, it would be preferable to define something quickly with minimal fuss. This is the problem which is solved by the `purescript-easy-ffi` library.
+
+By importing the `EasyFFI` module, we can simply specify an array of function argument names, and the function body:
+
+```purescript
+stringify :: forall a. Number -> a -> String
+stringify = unsafeForeignFunction ["n", "x"] "JSON.stringify(x, null, n)"
+```
+
+Much better! The advantages quickly become clear when writing bindings to large JavaScript libraries. For applications where performance is important, one might like to revert to the `Data.Function` approach for production code, but for getting an FFI project off the ground, this approach often gives an excellent time-to-first-release.
+
+`purescript-easy-ffi` also provides a way to write methods in the `Eff` monad.
+
+Suppose we wanted to modify the original example to properly take account of exceptions. In vanilla PureScript, this would involve two extra lines:
+
+```purescript
+foreign import stringify
+  "function stringify(n) {\
+  \  return function (x) {\
+  \    return function () {\
+  \      return JSON.stringify(x, null, n);\
+  \    };\
+  \  };\
+  \}" :: forall a eff. Number -> a -> Eff (err :: Exception | eff) String
+```
+
+With `purescript-easy-ffi`, only three extra characters are required:
+
+```purescript
+stringify :: forall a eff. Number -> a -> Eff (err :: Exception | eff) String
+stringify = unsafeForeignFunction ["n", "x", ""] "JSON.stringify(x, null, n)"
+```
+
+The inner function is represented by the empty string in the argument list.
+
+### `purescript-oo-ffi`
+
+The `purescript-oo-ffi` library solves a similar problem which you might encounter when writing bindings to object-oriented JavaScript libraries. It provides FFI helpers which can be used to construct the building blocks of an object-oriented FFI binding: object instantiations, method calls, and property getters and setters.
+
+As an example, consider the following JavaScript "class" definition:
+
+```javascript
+function Greeting() {
+  var self = this;
+
+  self.holiday = "Christmas";
+  self.beMerry = true;
+
+  self.greet = function() {
+    var prefix = self.beMerry ? "Merry " : "Happy ";
+    console.log(prefix + self.holiday + "!");
+  };
+}
+```
+
+We might call use this class as follows:
+
+```javascript
+new Greeting().greet();
+```
+
+Or if we are feeling less merry:
+
+```javascript
+var greeting = new Greeting();
+greeting.beMerry = false;
+greeting.greet();
+```
+
+Our class is also holiday-seasons-polymorphic!
+
+```javascript
+var greeting = new Greeting();
+greeting.beMerry = false;
+greeting.holiday = "Easter";
+greeting.greet();
+```
+
+Now suppose we wanted to write a binding to this class in PureScript. This task would usually involve a lot of boilerplate involving the `Eff` monad. However, the `purescript-oo-ffi` library makes our job much simpler.
+
+We can start by defining our own effect type, and a foreign type for the class itself:
+
+```purescript
+foreign import data Greet :: !
+
+foreign import data Greeting :: *
+```
+
+To wrap the constructor, we can use the `instantiate0` function, specifying the class name:
+
+```purescript
+newGreeting :: forall e. Eff (greet :: Greet | e) Greeting
+newGreeting = instantiate0 "Greeting"
+```
+
+To wrap the `greet` method, we can use the `method0Eff` function:
+
+```purescript
+greet :: forall e. Greeting -> Eff (greet :: Greet | e) Unit
+greet = method0Eff "greet"
+```
+
+This is enough to recreate our first example:
+
+```purescript
+example1 = do
+  g <- newGreeting
+  greet g
+```
+
+We can also provide wrappers for our two object properties, using the `getter` and `setter` functions:
+
+```purescript
+getMerry :: Greeting -> Eff (greet :: Greet | e) Boolean
+getMerry = getter "beMerry"
+
+setMerry :: Greeting -> Boolean -> Eff (greet :: Greet | e) Unit
+setMerry = setter "beMerry"
+
+getHoliday :: Greeting -> Eff (greet :: Greet | e) String
+getHoliday = getter "holiday"
+
+setHoliday :: Greeting -> String -> Eff (greet :: Greet | e) Unit
+setHoliday = setter "holiday"
+```
+
+And now we can recreate the other two examples:
+
+```purescript
+example2 = do
+  g <- newGreeting
+  setMerry g false
+  greet g
+
+example3 = do
+  g <- newGreeting
+  setMerry g false
+  setHoliday g "Easter"
+  greet g
+```
+
+### Conclusion
+
+Hopefully, this post has shown that writing PureScript FFI bindings does not have to be a chore. These two packages make it possible to quickly write bindings to almost any existing Javascript library.
+
+Try it out - the PureScript community has no end of suggestions for existing JavaScript libraries which could be wrapped and possibly extended in PureScript code. Join the conversation on the #purescript IRC, and we can provide plenty of guidance to get started.

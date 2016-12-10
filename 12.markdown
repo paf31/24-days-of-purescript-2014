@@ -1,0 +1,84 @@
+# 12. `purescript-react`
+
+Today, I'm going to take a look at one of the earliest, most developed, and most discussed PureScript contributor libraries. `purescript-react`, originally created by [@andreypopp](https://github.com/andreypopp), which provides an interface to the React UI library.
+
+On the face of it, React is a wonderful match for PureScript, emphasizing isolation of mutable state, and separation of concerns in the UI. However, while the _philosophy_ of React seems like a great match, the actual _implementation_ is another matter. It is somewhat challenging to provide an API for React's idiomatic JavaScript, in PureScript (or for that matter, in any pure functional language).
+
+For that reason, I see `purescript-react` as a triumph in its use of PureScript's flexible FFI. Also, I think it provides a great example of the trade-offs one can choose to make when writing FFI bindings, between type safety, and usability.
+
+Other libraries such as `virtual-dom` seem to take more cues from pure functional programming, and I look forward to seeing what will be done using those libraries from PureScript.
+
+Let's get started. I created a new project, with a HTML file, and installed both `react` and `purescript-react` using Bower.
+
+I created the following `Main.purs` file, based on the example in the `purescript-react` repository:
+
+```purescript
+module Main where
+
+import Control.Monad.Eff
+
+import React
+import React.DOM
+
+ui = mkUI spec { getInitialState = pure initialState } $
+       view <$> readState
+  where
+  initialState = { name: "World" }
+
+  view st =
+    p [] [ text "Merry Christmas, "
+         , text name
+         , text "!"
+         ]
+
+main =
+  let
+    component = div [] [ ui {} ]
+  in renderToBody component
+```
+
+This is enough to get started - compile the code and open `index.html`, and you will see the greeting "Merry Christmas, World!".
+
+The code requires a little explanation.
+
+The `mkUI` function can be used to build a UI component. We pass the initial state object, and a function which can render the view from the current state. The `React.DOM` library provides a collection of smart constructors which can be used to build views simply.
+
+Finally, in `main`, the `renderToBody` function is used to render the UI component to the DOM body.
+
+Now let's extend our application by allowing the user to modify the state object. We will add a text box to let the user enter their name.
+
+First, modify the `view` function to add the text box:
+
+```purescript
+  view st =
+    div [] [ p [] [ text "Your name: "
+                  , input [ onChange updateName ] []
+                  ]
+           , case st.name of
+               "" -> p [] [ text "Please enter your name." ]
+               name -> p [] [ text "Merry Christmas, "
+                            , text name
+                            , text "!"
+                            ]
+           ]
+```
+
+Here, the `onChange` function adds an _event handler_ to the UI component. We can provide the `updateName` handler, which sets the state to the entered text:
+
+```purescript
+  updateName :: Event -> EventHandlerContext _ _ _ _ _
+  updateName e = writeState { name: getValue e }
+```
+
+Here, I need to specify a type signature to avoid a type error due to `purescript-react`'s use of rank-N types. However, notice that the new _type wildcards_ feature allows us to only specify what is necessary.
+
+The `getValue` function needs to be provided as an FFI import:
+
+```purescript
+foreign import getValue
+  "function getValue (e) {\
+  \  return e.target.value;\
+  \}" :: Event -> String
+```
+
+If you would like to see the finished application, it is available online [here](http://paf31.github.io/24-days-of-purescript/react-example/html/).

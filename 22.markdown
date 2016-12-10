@@ -1,0 +1,55 @@
+# 22. `purescript-frp-rabbit`
+
+Today, I spent some time porting my "12 days of Christmas" demo from earlier in the series to use [@mechairoi](http://github.com/mechairoi)'s [`purescript-frp-rabbit`](https://github.com/mechairoi/purescript-frp-rabbit) library.
+
+`purescript-frp-rabbit` is an interesting library. It combines two existing libraries. `purescript-frp` by [@nullobject](https://github.com/nullobject) and `purescript-virtual-dom` by [@garyb](https://github.com/garyb), to build an FRP library supporting DOM templates, events and partial updates.
+
+User interfaces in Rabbit are constructed from a signal of virtual DOM elements. Here is the type of the top-level function, with unimportant details redacted using type wildcards:
+
+```purescript
+runRabbit :: Signal _ VTree -> (Node -> Eff _ _) -> Eff _ Unit
+```
+
+That is, `runRabbit` takes a `Signal` which produces `VTree` representation of the DOM, and a function to render the initial DOM node, and produces an `Eff` action which will keep the DOM up to date with the provided signal.
+
+One particularly interesting thing about `purescript-frp-rabbit` is the way in which it handles feedback from the DOM to the underlying `VTree` signal. The `createEventHandler` function creates an entangled pair of an event handler and a signal, such that when the event handler is run, the event is made available on the corresponding signal. Here is how I used `createEventHandler` to build my `main` function:
+
+```purescript
+main = do
+  handler <- createEventHandler
+  let day = stateful (\_ day -> (day + 1) % 12) 0 handler.event <> pure 0
+  runRabbit (view handler.handler <<< ((+) 1) <$> day) appendToBody
+```
+
+Here, the event handler is passed to the `view` function, to be used later, and the signal is used to build a counter signal which counts up from 0 to 11, and then repeats. Notice how we no longer have to deal with the spaghetti code of event handlers - we only have to concern ourselves with the composition of signals.
+
+To complete the example, here is my `view` function, with some code taken from my previous version of this demo:
+
+```purescript
+el :: String -> [VTree] -> VTree
+el name = vnode name { }
+
+view :: VTT.Handler _ -> Number -> VTree
+view nextDay n = el "div"
+  [ el "h1" [ vtext "The twelve days of Christmas" ]
+  , el "p"  [ vtext "On the "
+            , vtext $ show n
+            , vtext $ th n
+            , vtext " day of Christmas, my true love gave to me:"
+            ]
+  , el "ul" $ day <$> model n
+  , VTT.vnode "button" [ VTT.handler "onclick" nextDay ] [ vtext "> Next" ] Nothing Nothing
+  ]
+  where
+  day (Tuple count gift) = el "li"
+    [ vtext $ show count
+    , vtext " "
+    , vtext gift
+    ]
+```
+
+And that's all that is needed to create a user interface with feedback in `purescript-frp-rabbit`! Even more impressively, we get partial updates to the DOM for free, because of the way in which Rabbit uses `virtual-dom` under the hood. This means that we can expect our user interfaces to be very fast, only writing the minimal number of changes to the DOM on each render.
+
+You can see the finished demo running [here](http://paf31.github.io/24-days-of-purescript/rabbit-example/html/).
+
+In this series, we've seen a few different approaches to FRP and the UI, and there are still other libraries which I have not covered. I hope that this example has shown that it is possible to create high-performance user interfaces in PureScript quickly by making use of powerful abstractions like signals and the virtual DOM.

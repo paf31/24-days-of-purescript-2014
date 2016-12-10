@@ -1,0 +1,92 @@
+# 17. `purescript-strongcheck`
+
+Today, I'm going to look at the `purescript-strongcheck` library by [@jdegoes](http://github.com/jdegoes). Strongcheck is an "industrial-strength" version of the `purescript-quickcheck` library, providing additional combinators for building more powerful tests, and new testing strategies entirely, such as statistical testing and exhaustive testing. In fact, Strongcheck actually comprises what could make up several smaller interesting libraries.
+
+### New Generators
+
+Suppose we write a library to verify Christmas gift wishlists. The library is designed to ensure that the list is not too long, and does not contain duplicate gift requests:
+
+```purescript
+module Wishlist where
+
+import Data.Array (length, nub)
+
+type Gift = String
+
+newtype Wishlist = Wishlist [Gift]
+
+verify :: Wishlist -> Boolean
+verify (Wishlist wl)
+  | length wl > 5 = false
+  | length (nub wl) /= length wl = false
+  | otherwise = true
+```
+
+We can test this library in `psci`:
+
+```text
+$ pulp psci
+
+> Wishlist.verify ["foo", "bar", "bar"]
+false
+
+> Wishlist.verify ["foo", "bar", "baz", "bam", "bux"]
+true
+
+> Wishlist.verify ["foo", "bar", "baz", "bam", "bux", "xyz"]
+false
+```
+
+And we could use `purescript-quickcheck` to generate arbitrary `Wishlist`s and verify their properties. The problem is that it is tricky to generate arbitrary `Wishlist`s which satisfy the criteria described by the `verify` function.
+
+Strongcheck provides additional functions for generating random input data, which makes this job easier. In this case, we can use two additional functions, `chooseInt` and `nChooseK` to generate valid `Wishlists` from a pool of 20 mock "gifts":
+
+```purescript
+gifts :: [Gift]
+gifts = toGift <$> (1 .. 20)
+  where
+  toGift :: Number -> Gift
+  toGift n = "Gift " ++ show n
+
+instance arbWishlist :: Arbitrary Wishlist where
+  arbitrary = do
+    n <- chooseInt 0 5
+    Wishlist <$> nChooseK n gifts
+```
+
+Then we can use the `quickCheck` function to validate 100 random `Wishlist`s:
+
+```purescript
+main = do
+  quickCheck Wishlist.verify
+```
+
+The `chooseInt` generator chooses an integer from a range, and the `nChooseK` generator will generate arrays of a given size without duplicates. We can use these two functions to generate randomly-selected valid `Wishlist`s.
+
+Strongcheck provides many interesting new generators like these ones. This is possible because Strongcheck's `Gen` type is built on the `purescript-machines` library, and can support more interesting ways of generating of pseudo-random data.
+
+### `smallCheck` and `statCheck`
+
+Strongcheck also provides two new test types in the form of the `smallCheck` and `statCheck` functions.
+
+`smallCheck` can be used to test properties exhaustively. In fact, if we want to modify our test to verify _all_ valid `Wishlist`s instead of a random sample, it is as simple as changing `quickCheck` to `smallCheck`:
+
+```purescript
+main = do
+  smallCheck Wishlist.verify
+```
+
+`statCheck` is used when you want to verify that a property holds with some probability, but cannot guarantee that it holds with certainty for any random sample.
+
+For example, we would expect that a random sampling of `Wishlist`s generated as above would contain any given gift from the list of 20 mock gifts, about a quarter of the time. We can express this with `statCheck` as follows:
+
+```purescript
+main = do
+  statCheck (1/4) $ \(Wishlist wl) -> "Gift 1" `elem` wl
+```
+
+Strongcheck contains some other impressive features, like the ability to resize and perturb randomly generated values to generate more meaningful test failures, but I won't cover those here.
+
+I urge you to check out this feature-packed library. If `purescript-strongcheck` doesn't meet your needs for generative testing, I would be surprised!
+
+If you would like to see the code for this example, it is available [here](https://github.com/paf31/24-days-of-purescript/tree/gh-pages/strongcheck-example).

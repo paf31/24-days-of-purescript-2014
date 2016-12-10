@@ -1,0 +1,40 @@
+# 16. Editor Integration
+
+Today, I'm going to take a break from talking about libraries, to briefly highlight some of the options available for working with PureScript in various popular text editors.
+
+### Vim
+
+Vim is my terminal text editor of choice, so I can say the most about it here. I use the [`purescript-vim`](https://github.com/raichoo/purescript-vim) plugin by [@raichoo], which provides two neat features:
+
+- Syntax highlighting
+- Automatic indentation
+
+The indentation levels can be configured to your liking. Also, to my knowledge, the `purescript-vim` syntax highlighter is the only one which currently correctly identifies triple-quoted string literals (although I might be wrong).
+
+Installation is simple - install [Pathogen](https://github.com/tpope/vim-pathogen) if you don't have it installed already, and then clone the `purescript-vim` repository under `~/.vim/bundle/`.
+
+### Emacs
+
+Emacs users can enjoy a collection of PureScript-related plugins, thanks to the excellent work done by various contributors:
+
+- [@spion](http://github.com/spion)'s [`purscheck`](https://github.com/spion/purscheck) provides `flycheck`-compatible syntax and error checking, with errors highlighted in the buffer.
+- [@ardumont](http://github.com/ardumont)'s [`emacs-psci`](https://github.com/ardumont/emacs-psci) provides a major mode for the `psci` interactive mode.
+- [@dysinger](http://github.com/dysinger)'s [`purescript-mode`](https://github.com/dysinger/purescript-mode) repurposes `haskell-mode` for PureScript.
+
+Alejandro Cabrera has written some useful information about his Emacs setup [here](https://blog.cppcabrera.com/posts/purescript-emacs.html).
+
+### Other Editors
+
+Support is available for other editors to various degrees:
+
+- [`ikarienator/pure-idea`](https://github.com/ikarienator/pure-idea) is a plugin for IntelliJ IDEA, which supports syntax highlighting and grammar checking.
+- [`joneshf/sublime-purescript`](https://github.com/joneshf/sublime-purescript) provides highlighting, auto-completion and support for snippets in Sublime Text 2.
+- [`darinmorrison/atom-language-purescript`](https://github.com/darinmorrison/atom-language-purescript) supports syntax highlighting in the Atom text editor.
+
+Did I miss any?
+
+### Future Plans
+
+One of the prioritized items for the compiler is the so-called ["compiler-as-a-service"](https://github.com/purescript/purescript/issues/555), which should make it possible to build richer editor integrations: type-checking on save, getting the type of the expression at the cursor, searching for possible implementation a la Hoogle, etc.
+
+Generally, this is an area where the community can use a lot of help. Good editor integration is exactly the sort of thing which will enable PureScript to succeed, so please join the #purescript IRC channel and share your ideas.

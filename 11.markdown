@@ -1,0 +1,75 @@
+# 11. `purescript-express`
+
+Today, I tried out the `purescript-express` library for the first time. This library, by [@dancingrobot84](https://github.com/dancingrobot84/purescript-express), provides a wrapper for the [Express](http://expressjs.com) web framework. If you are interested in seeing this library in use in a real project, you should check out [Beta Reduction Online](http://bro-app.herokuapp.com), by the same author.
+
+Let me start by saying that I was amazed by how simple it was to get started with this library. I was able to get up and running in a matter of a few minutes. Here is a console transcript and a few lines of code which should suffice to get started:
+
+```text
+$ pulp init
+$ npm install express
+$ bower install purescript-express
+$ ... modify src/Main.purs ...
+$ pulp run
+```
+
+Here is the code which I wrote for my first test, based on the example from the project repository:
+
+```purescript
+module Main where
+
+import Node.Express.Types
+import Node.Express.App
+import Node.Express.Handler
+
+handler :: Handler
+handler = sendJson { greeting: "Merry Christmas!" }
+
+app :: App
+app = get "/" handler
+
+main = listen app 8080 \_ -> return unit
+```
+
+This application will listen on port 8080, and you can open your browser to `http://localhost:8080` to see the result.
+
+Let's modify our routes to match a parameter. Start by changing the route pattern in `app`, as follows:
+
+```purescript
+app :: App
+app = get "/greet/:name" handler
+```
+
+Next, add an import for `Data.Maybe`, and change the handler to read the value of the parameter:
+
+```purescript
+handler :: Handler
+handler = do
+  Just name <- getParam "name"
+  sendJson { greeting: "Merry Christmas, " <> name <> "!" }
+```
+
+This time, when you visit, for example, `http://localhost:8080/greet/Charlie%20Brown`, you should see a more personalized greeting.
+
+`purescript-express` provides much more functionality. As one final example, let's implement a (very unsafe) file server.
+
+```purescript
+handler :: Handler
+handler = do
+  m <- getQueryParam "file"
+  case m of
+    Just file -> download file
+    Nothing -> do
+      setStatus 400
+      sendJson { error: "Please specify the file parameter" }
+
+app :: App
+app = get "/file" handler
+```
+
+This example demonstrates a few other functions:
+
+- `setStatus` can be used to send an error (or success) code in the HTTP response.
+- `download` can be used to download a file given its filename.
+- `getQueryParam` can be used to read a value from the query string.
+
+Now, we can download files by navigating to, for example, `http://localhost:8080/file?file=/etc/hosts`. Obviously, this is very unsafe, and such a service should not be made publically (or probably even locally) available, but it demonstrates how quickly it is possible to write useful services with this great library.

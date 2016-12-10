@@ -1,0 +1,103 @@
+# 5. `purescript-rx`
+
+Today, I'm going to look at the `purescript-rx` library, by [@anttih](https://github.com/anttih/), which provides a PureScript binding to the [RxJS](https://github.com/Reactive-Extensions/RxJS) library.
+
+For me, this library is a wonderful example of the self-documenting nature of a well-designed functional library. While I have used Reactive Extensions quite a lot in C# in the past, I have never used RxJS itself. Nor have I used the `purescript-rx` library before this morning, but I was able to get up and running in under 20 minutes by applying my knowledge of well-defined abstractions like `Monad` and `Applicative`.
+
+Using `bower install git@github.com:anttih/purescript-rx.git` will conveniently install the `rxjs`, `jquery` and `rxjs-jquery` libraries under `bower_components` directory, which we can then include in our page as follows:
+
+```html
+<script type="text/javascript" src="../bower_components/jquery/dist/jquery.js"></script>
+<script type="text/javascript" src="../bower_components/rxjs/dist/rx.all.js"></script>
+<script type="text/javascript" src="../bower_components/rxjs-jquery/rx.jquery.js"></script>
+```
+
+My example will consist of two colored squares, and I will attempt to detect various gestures by using RxJS to combine event streams. Here is the HTML:
+
+```html
+<div style="width: 100px; height: 100px; background-color: green; float: left" id="green"></div>
+<div style="width: 100px; height: 100px; background-color: red; float: left" id="red"></div>
+<pre style="clear: left;" id="output"></pre>
+```
+
+The imports list is straightforward:
+
+```purescript
+module Main where
+
+import Control.Monad.Eff
+
+import Rx.JQuery
+import Rx.Observable
+
+import Control.Monad.JQuery
+```
+
+The first task is to get a reference to the three DOM elements, using the `purescript-jquery` library:
+
+```purescript
+main = do
+  red <- select "#red"
+  green <- select "#green"
+  output <- select "#output"
+```
+
+Next, let's use the `Rx.JQuery` module to turn the `mouseover`, `mousemove` and `mousedown` event streams into `Observable` streams:
+
+```purescript
+  redOver <- "mouseover" `onAsObservable` red
+  redMove <- "mousemove" `onAsObservable` red
+  redOut  <- "mouseout"  `onAsObservable` red
+
+  greenOver <- "mouseover" `onAsObservable` green
+  greenMove <- "mousemove" `onAsObservable` green
+  greenOut  <- "mouseout"  `onAsObservable` green
+```
+
+We can subscribe to these event streams directly, by using the `subscribe` action:
+
+```purescript
+  redOver `subscribe` \_ -> void $ "red mouseover" `setText` output
+  redMove `subscribe` \_ -> void $ "red mousemove" `setText` output
+  redOut  `subscribe` \_ -> void $ "red mouseout"  `setText` output
+
+  greenOver `subscribe` \_ -> void $ "green mouseover" `setText` output
+  greenMove `subscribe` \_ -> void $ "green mousemove" `setText` output
+  greenOut  `subscribe` \_ -> void $ "green mouseout"  `setText` output
+```
+
+However, these examples are not particularly interesting.
+
+The documentation for `purescript-rx` helpfully notes that `Observable` is an instance of several common type classes: `Semigroup`, `Applicative`, `Monad` and their respective superclasses. We can use these instances to build more interesting gesture recognizers.
+
+Here's a simple example. Suppose we wanted to detect when the user moved the mouse from the left to the right, from the red square and onto the green square. Or the other way, from the green square onto the red square.
+
+Ordinarily, this would involve a mess of callback handlers, but with RxJS, we can use the `flatMap` function to combine dependent event streams in this way. In `purescript-rx`, this function defines the `>>=` function of the `Observable` type constructor's `Monad` instance, so we can just define our gestures using regular `do` notation!
+
+```purescript
+  let gestureLeft = do redOver
+                       redOut
+                       greenOver
+                       greenOut
+                       return "Swipe left"
+  let gestureRight = do greenOver
+                        greenOut
+                        redOver
+                        redOut
+                        return "Swipe right"
+```
+
+Here, we could even use `<-` to extract data from the various events, but let's keep things simple for now.
+
+We can subscribe to these combined events, and display the recognized gesture on the screen:
+
+```purescript
+  (gestureLeft `merge` gestureRight) `subscribe` \msg ->
+    void $ msg `setText` output
+```
+
+The finished demo can be seen [here](http://paf31.github.io/24-days-of-purescript/purescript-rx/html/).
+
+This is just one example of the ways in which `purescript-rx` and RxJS can be used to combine event streams. I haven't covered the `Applicative` or `Semigroup` instances here, which are interesting in their own right. Fortunately, the library is very simple to install, so fork the demo repository and give it a try for yourself.
+
+Later in the month, I will show another approach to combining event streams in PureScript, so stay tuned!

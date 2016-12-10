@@ -1,0 +1,110 @@
+# 13. `purescript-smolder`
+
+Today, I'm going to take a look at `purescript-smolder`, which is the third (but not final) PureScript library to be covered in this series, which is written by [@bodil](http://github.com/bodil).
+
+`purescript-smolder` is a domain-specific language for the problem of creating and applying DOM templates, inspired by Haskell's `blaze-html` library.
+
+To celebrate having just completed twelve days of this mini-blog series, I'm going to use the library to create a page which lists the lyrics to the song "the twelve days of Christmas" in a structured form.
+
+For anyone who just wants to see the finished result, you can do so [here](http://paf31.github.io/24-days-of-purescript/smolder-example/html/).
+
+My demo uses the following imports from the `purescript-smolder` library:
+
+```purescript
+import Text.Smolder.HTML (h1, p, ul, li)
+import Text.Smolder.HTML.Attributes (name, content)
+import Text.Smolder.Markup (Markup(), text)
+import Text.Smolder.Renderer.String (render)
+```
+
+The `Text.Smolder.HTML` and `Text.Smolder.Attributes` modules contain typed representations of HTML elements and attributes respectively.
+
+The `Text.Smolder.Markup` defines the `text` function which, as we will see, is used to embed plain text into a document.
+
+Finally, the `Text.Smolder.Renderer.String` module defines one of two renderers provided by the library, which renders the HTML to a string.
+
+To start, let's define a list of gifts which my true love gave to me:
+
+```purescript
+gifts :: [String]
+gifts = [ "partridge in a pear tree"
+        , "turtle doves"
+        , "french hens"
+        , "calling birds"
+        , "golden rings"
+        , "geese a-laying"
+        , "swans a-swimming"
+        , "maids a-milking"
+        , "ladies dancing"
+        , "lords a-leaping"
+        , "pipers piping"
+        , "drummers drumming"
+        ]
+```
+
+We're also going to need the following helper function:
+
+```purescript
+th :: Number -> String
+th 1 = "st"
+th 2 = "nd"
+th 3 = "rd"
+th _ = "th"
+```
+
+Now, let's define a model for a single verse of the song:
+
+```purescript
+type Model = [Tuple Number String]
+
+day :: Number -> Model
+day n = reverse (take n (zip (1..12) gifts))
+```
+
+To determine the model for a given day, we simply take that number of days from the list and reverse it.
+
+Now, we can use `purescript-smolder` to render our view:
+
+```purescript
+view :: Markup
+view = do
+  h1 $ text "The twelve days of Christmas"
+  for_ (1..12) $ \n -> do
+    p $ do
+      text "On the "
+      text $ show n
+      text $ th n
+      text " day of Christmas, my true love gave to me:"
+    ul $ do
+      for_ (day n) $ \(Tuple count gift) -> li do
+        text $ show count
+        text " "
+        text gift
+```
+
+There are a few things to notice here:
+
+- Elements are just functions like `h1` and `ul`.
+- Text content is created using the `text` function.
+- We can use `do` notation, and functions like `for_` to structure our code, since `Markup` is monadic.
+
+Finally, we can use the `render` function to turn our `Markup` into a HTML string:
+
+```purescript
+main = asBody $ render view
+```
+
+Here, the `asBody` function is defined using a foreign import:
+
+```purescript
+foreign import asBody
+  "function asBody(html) {\
+  \  return function() {\
+  \    onload = function() {\
+  \      document.body.innerHTML = html;\
+  \    };\
+  \  };\
+  \}" :: forall eff. String -> Eff (dom :: DOM | eff) Unit
+```
+
+One other neat thing about `purescript-smolder` is that it also provides a renderer which makes use of the `virtual-dom` library, in the `Text.Smolder.Renderer.VTree` module. This means that you would be able to render two values of type `Markup` to virtual DOM elements, and patch the DOM by applying the differences. This approach can result in some remarkable speed improvements in DOM-heavy applications.
