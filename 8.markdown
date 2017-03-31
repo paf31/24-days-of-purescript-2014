@@ -9,13 +9,14 @@ Here is a very simple example to get started:
 ```purescript
 module Main where
 
+import Prelude
 import Data.Machine.Mealy
 import Control.Monad.Eff
 import Debug.Trace
 
 main = runMealy machine
   where
-  machine = take 100 (loop (return "Merry Christmas!")) >>> sink trace
+  machine = take 100 (loop (return "Merry Christmas!")) >>> sink traceA
 ```
 
 Here, we can factor our code into a source and a sink:
@@ -25,7 +26,7 @@ main = runMealy machine
   where
   machine = greetings >>> printer
   greetings = take 100 (loop (return "Merry Christmas!"))
-  printer = sink trace
+  printer = sink traceA
 ```
 
 Note that the usual function composition operator `>>>` is being used here in its more polymorphic form, taken from the `Category` type class. The `purescript-machines` library provides a rich array of standard type class implementations for its `MealyT` type constructor, which can be used to build complex state machines.
